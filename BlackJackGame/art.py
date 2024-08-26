@@ -8,3 +8,4 @@ logo = r'''
        '|  \/ 3|                          _/ |  AN EXPERT GAME        '|  \/ K|   
         `------'                         |__ /                         `------'
 '''
+print(logo)
