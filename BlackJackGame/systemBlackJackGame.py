@@ -1,252 +1,263 @@
 import os
 import random
-from art import logo
+from typing import List, Tuple
+
+# try to import ascii art logo; fall back to simple text if not available
+try:
+    from art import logo  # type: ignore
+except Exception:
+    logo = "=== BLACKJACK ==="
 
 
-def clean_screen():
-    """Clear the screen and Print the BlackJack's logo"""
-    os.system('cls' if os.name == 'nt' else 'clear')
+def clean_screen() -> None:
+    """Clear the screen and print the Blackjack logo (if available)."""
+    os.system("cls" if os.name == "nt" else "clear")
     print(logo)
 
 
-def deal_cards():
-    """Select a card from 12 pack of cards."""
+def deal_cards() -> str:
+    """Select a card from a pack and return its symbol."""
     cards = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"]
-
-    # Select a random card and return the card value.
-    card = random.choice(cards)
-    return card
+    return random.choice(cards)
 
 
-def sum_of_cards(cards):
-    """Sum all the card values and return the sum of all collected cards """
+def sum_of_cards(cards: List[str]) -> int:
+    """
+    Convert card symbols to a numeric total treating A as 11 initially.
+    J/Q/K = 10, numeric strings converted to int.
+    """
     total = 0
-
     for card in cards:
-        if card == "A":
-            total += 11
-        elif card in ["J", "Q", "K"]:
+        if card in ("J", "Q", "K"):
             total += 10
+        elif card == "A":
+            total += 11
         else:
-            total += int(card)
-
+            try:
+                total += int(card)
+            except Exception:
+                total += 0
     return total
 
 
-def calculate_score(cards):
-    """Calculate and return the sum of collected cards"""
+def calculate_score(cards: List[str]) -> int:
+    """
+    Calculate and return the blackjack score.
+    Return 0 as special code for a natural blackjack (two-card 21).
+    """
     score = sum_of_cards(cards)
 
+    # Natural blackjack: two cards that total 21 (e.g., A + 10-value)
     if score == 21 and len(cards) == 2:
         return 0
-    
-    if "A" in cards and score > 21:
+
+    # If over 21 and there is an Ace counted as 11, convert A(11) to A(1) by subtracting 10
+    ace_count = cards.count("A")
+    while score > 21 and ace_count:
         score -= 10
-    
+        ace_count -= 1
+
     return score
 
 
-def compare_scores(user_score, computer_score):
-    """Compare the user score with computer score and return the Winner of game."""
+def compare_scores(user_score: int, computer_score: int) -> Tuple[str, str]:
+    """
+    Compare user and dealer scores and return (message, winner).
+    winner is one of: "user", "computer", "draw"
+    """
     if user_score == computer_score:
-        return "Match draw 🙃 and You can also try one more time.", "draw"
-    elif user_score == 0:
-        return "You win with a BlackJack 😎", "user"
-    elif computer_score == 0:
-        return "You lose with Computer's BlackJack 😱", "computer"
-    elif user_score > 21:
-        return "You went over and lose 😭", "computer"
-    elif computer_score > 21:
-        return "Computer went over and You win 😁", "user"
-    elif user_score > computer_score:
-        return "Wow... You win 😃", "user"
-    else:
-        return "Ohh... You lose 😤", "computer"
+        return ("Draw 🙃 — No one wins.", "draw")
+    if user_score == 0:
+        return ("Blackjack! You win 🥳", "user")
+    if computer_score == 0:
+        return ("Opponent has Blackjack. You lose 😭", "computer")
+    if user_score > 21:
+        return ("You went over. You lose 😭", "computer")
+    if computer_score > 21:
+        return ("Opponent went over. You win 🎉", "user")
+    if user_score > computer_score:
+        return ("You win 🎉", "user")
+    return ("You lose 😭", "computer")
 
-    
-def play_game():
-    """Actual game starts here"""
-    # intiation of the packs and scores
-    user_cards = []
-    user_score = -1
-    computer_cards = []
-    computer_score = -1
-    is_game_over = False
 
-    # pick the first and second cards from the pack.
-    for card in range(2):
-        user_cards.append(deal_cards())
-        computer_cards.append(deal_cards())
-    
-    while not is_game_over:
-        user_score = calculate_score(user_cards)
-        computer_score = calculate_score(computer_cards)
-    
-        print(f"Your cards: {user_cards}, current score: {user_score}")
-        print(f"Computer's first card: {computer_cards[0]}\n")
+def play_game() -> str:
+    """
+    A simple non-interactive round used for testing.
+    Returns 'user'|'computer'|'draw'.
+    """
+    user_cards: List[str] = [deal_cards(), deal_cards()]
+    computer_cards: List[str] = [deal_cards(), deal_cards()]
 
-        if user_score == 0 or computer_score == 0 or user_score > 21:
-            is_game_over = True
+    user_score = calculate_score(user_cards)
+    computer_score = calculate_score(computer_cards)
 
-        elif user_score == 21:
-            is_game_over = True
-
-        else:
-            play_next = input(f"Type 'y' to get another card, type 'n' to pass: ")
-            if play_next == "y":
-                user_cards.append(deal_cards())
-            else:
-                is_game_over = True
-        
+    # dealer plays if needed
     while computer_score != 0 and computer_score < 17 and user_score <= 21:
         computer_cards.append(deal_cards())
         computer_score = calculate_score(computer_cards)
-    
-    computer_score = calculate_score(computer_cards)
-    print(f"\nYour final hand: {user_cards} and final score: {user_score}")
-    print(f"Computer's final hand: {computer_cards} and final score: {computer_score}")
-    x, y = compare_scores(user_score, computer_score)
-    print(x)
-    return y
+
+    _, winner = compare_scores(user_score, computer_score)
+    return winner
 
 
-def bet_calculate(balance):
-    """Calculate the bet amount based on the coins avialable."""
-    bank_balance = balance
+def bet_calculate(balance: int) -> int:
+    """
+    Console helper to assemble a bet by adding coins.
+    Returns final bet amount.
+    """
+    coins = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 5000]
     bet = 0
-    coins = [1,2,5,10,20,50,100,200,500,1000,5000]
-    continue_bet = True
-
-    while bet < bank_balance and continue_bet:
-        print(f"\nThe avialable coins for bet: {coins}")
-        selected_coin = input("Enter the Coin (or type \"D for done\"): ").lower()
-        if selected_coin == "d":
-            continue_bet = False
+    while True:
+        clean_screen()
+        print(f"Current balance: ${balance}")
+        print(f"Current bet: ${bet}")
+        print("Available coins:", ", ".join(map(str, coins)))
+        print("Enter coin value to add, or 'd' when done, or 'q' to cancel:")
+        choice = input("> ").strip().lower()
+        if choice == "d":
             break
-        elif selected_coin.isdigit():
-            selected_coin = int(selected_coin)
-            if selected_coin in coins:        
-                if selected_coin > bank_balance:
-                    print("You have placed a Bigger coin than your balance, please a smaller coin.\n")
-
-                else:
-                    valid_bet = True
-                    while valid_bet:
-                        no_of_coins = input("How many coins do you want to place: ")
-                        if no_of_coins.isdigit():
-                            bet_amount = selected_coin * int(no_of_coins)
-                            bet += bet_amount
-                            if bet > bank_balance:
-                                print("\nYou have placed more coins than you balance, please place lesser coins.")
-                                bet -= bet_amount
-                            else:
-                                valid_bet = False
-                        else:
-                            print("You have entered wrong input.")
-
-                print(f"The bet amount till now: {bet}")
-            
-        else:
-            print("You have placed the wrong coin, please place the proper coin.\n")
-
+        if choice == "q":
+            bet = 0
+            break
+        try:
+            coin = int(choice)
+            if coin not in coins:
+                print("Invalid coin. Press Enter to continue.")
+                input()
+                continue
+            count = input("How many of this coin? (enter integer): ").strip()
+            count_i = int(count) if count else 1
+            addition = coin * max(1, count_i)
+            if bet + addition > balance:
+                print("Bet would exceed balance. Press Enter to continue.")
+                input()
+                continue
+            bet += addition
+        except Exception:
+            print("Invalid input. Press Enter to continue.")
+            input()
     clean_screen()
     return bet
 
 
-def game_start(balance):
-    """Here, you have entered into gaming zonw with Bank balance."""
+def game_start(balance: int) -> Tuple[int, int]:
+    """
+    Console-driven game start that asks for bet and plays a single round.
+    Returns (new_balance, bet)
+    """
     bank_balance = balance
-
-    print(f"\nYou Bank balance: {bank_balance}")
+    print(f"\nYour Bank balance: {bank_balance}")
     bet = bet_calculate(bank_balance)
-    print(f"\nYou Bank balance: {bank_balance}")
-    print(f"\nThe final bet amount is: {bet}")
-    
-    if bank_balance >= bet and bet > 0:
-        # Enter into the game...
-        winner = play_game()
-        if winner == "user":
-            bank_balance += bet
-        elif winner == "computer":
-            bank_balance -= bet
-    
-        # print(f"\nYou Bank balance: {bank_balance}")
+    print(f"\nFinal bet amount: {bet}")
+    if bet <= 0 or bet > bank_balance:
+        print("No valid bet placed. Returning to menu.")
+        return bank_balance, 0
 
-    else:
-        print("You have entered wrong bet, please try again less than your bank balance.")
-        bank_balance = game_start(bank_balance)
-    
+    # subtract stake
+    bank_balance -= bet
+
+    # deal
+    user_cards = [deal_cards(), deal_cards()]
+    computer_cards = [deal_cards(), deal_cards()]
+
+    user_score = calculate_score(user_cards)
+    computer_score = calculate_score(computer_cards)
+
+    # player loop
+    while user_score != 0 and user_score <= 21:
+        print(f"\nYour cards: {user_cards}, current score: {user_score}")
+        print(f"Computer's first card: {computer_cards[0]}")
+        move = input("Type 'h' to hit, 's' to stand: ").strip().lower()
+        if move == "h":
+            user_cards.append(deal_cards())
+            user_score = calculate_score(user_cards)
+            if user_score > 21:
+                break
+        elif move == "s":
+            break
+
+    # dealer plays
+    while computer_score != 0 and computer_score < 17 and user_score <= 21:
+        computer_cards.append(deal_cards())
+        computer_score = calculate_score(computer_cards)
+
+    print(f"\nYour final hand: {user_cards} final score: {user_score}")
+    print(f"Computer's final hand: {computer_cards} final score: {computer_score}")
+    message, winner = compare_scores(user_score, computer_score)
+    print(message)
+
+    # settle
+    if winner == "user":
+        bank_balance += bet * 2
+    elif winner == "draw":
+        bank_balance += bet
+
     return bank_balance, bet
 
 
-def determine_level(total_bet, rounds_played, default_amount):
-    """Determine the difficulty level based on the total bet amount and the number of rounds played."""
+def determine_level(total_bet: int, rounds_played: int, default_amount: int) -> None:
+    """
+    Print a simple summary / level suggestion based on betting and rounds.
+    """
+    print("\n====================== SUMMARY OF THIS GAME ======================")
+    print(f"Starting balance: ${default_amount}")
+    print(f"Rounds played: {rounds_played}")
+    print(f"Total bet amount: ${total_bet}")
 
     if total_bet <= 2 * default_amount and rounds_played < 2:
-        level = "Beginner"
-
+        print("Level: Beginner — low betting activity.")
     elif 2 * default_amount < total_bet <= 5 * default_amount and 2 <= rounds_played < 5:
-        level = "Medium"
-
+        print("Level: Intermediate — moderate betting activity.")
     elif total_bet > 10 * default_amount and rounds_played >= 1:
-        level = "Expert"
+        print("Level: High Roller — large betting activity.")
     else:
         # Edge cases that don't fit exactly in the above categories
         if total_bet > 10 * default_amount or rounds_played > 10:
-            level = "Expert"
+            print("Level: Expert — very high betting activity.")
         elif total_bet > 5 * default_amount or rounds_played >= 5:
-            level = "Medium"
+            print("Level: Medium — above average betting activity.")
         else:
-            level = "Beginner"
-    
-    print("\n====================== SUMMARY OF THE THIS GAME ======================")
-    if level == "Expert":
-        print(f"\nWow, You are an Expert. \nTotal bet you have placed: {total_bet}\nTotal rounds played: {rounds_played}")
-    elif level == "Medium":
-        print(f"\nNice, You are at Medium. \nTotal bet you have placed: {total_bet}\nTotal rounds played: {rounds_played}")
-    else:
-        print(f"\nSad, You are just Beginner. \nTotal bet you have placed: {total_bet}\nTotal rounds played: {rounds_played}")
+            print("Level: Beginner — low betting activity.")
 
 
-# Program execution starts from here by clearing the screen.
-clean_screen()
+# Only run the console main loop when executed directly.
+if __name__ == "__main__":
+    # Program execution starts from here by clearing the screen.
+    clean_screen()
 
-default_amount = 100
-bank_balance = default_amount
-total_bet = 0
-no_of_games = 0
+    default_amount = 100
+    bank_balance = default_amount
+    total_bet = 0
+    no_of_games = 0
 
-while bank_balance >= 0:
-   
+    while bank_balance >= 0:
+        if bank_balance == 0:
+            determine_level(total_bet, no_of_games, default_amount)
+            continue_game = input(
+                "\nYou have lost the complete bank balance,\nDo you want to restart the game with the default balance? (\"y\" or \"n\"): "
+            ).lower()
+            if continue_game == "y":
+                total_bet = 0
+                no_of_games = 0
+                bank_balance = default_amount
+                clean_screen()
+                bank_balance, bet = game_start(bank_balance)
+                total_bet += bet
+            else:
+                break
 
-    if bank_balance == 0:
-        determine_level(total_bet, no_of_games, default_amount)
-        continue_game = input("\nYou have lost the complete bank balance,\nDo you want to restart the game with the default balance? (\"y\" or \"n\"): ").lower()
-        if continue_game == "y":
-            total_bet = 0
-            no_of_games = 0
-            bank_balance = default_amount
+        print(f"\nYou Bank balance: {bank_balance}")
+        play = input("Do you want to play a game of Blackjack? Type 'y' or 'n': ").lower()
+        no_of_games += 1
+
+        if play == "y":
             clean_screen()
             bank_balance, bet = game_start(bank_balance)
-            total_bet += bet            
-
-        else:
+            total_bet += bet
+        elif play == "n":
             break
+        else:
+            clean_screen()
+            print("You have entered wrong input 😏, please try again.")
 
-    print(f"\nYou Bank balance: {bank_balance}")
-    play = input("Do you want to play a game of Blackjack? Type 'y' or 'n': ").lower()
-    no_of_games += 1
-
-    if play == 'y':
-        clean_screen()
-        bank_balance, bet = game_start(bank_balance)
-        total_bet += bet
-
-    elif play == 'n':
-        break
-
-    else:
-        clean_screen()
-        print("You have entered wrong input 😏, please try again.")
-
-print(f"\nYou can play this game at anytime by executing this program.\nThank you...😍")
+    print(f"\nYou can play this game at anytime by executing this program.\nThank you...😍")
